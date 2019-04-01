@@ -942,36 +942,37 @@ Type \\[magit-reset] to reset `HEAD' to the commit at point.
   (magit-log-goto-same-commit))
 
 (defun magit-log-refresh-buffer (revs args files)
-  (magit-set-header-line-format
-   (funcall magit-log-header-line-function revs args files))
-  (if (= (length files) 1)
-      (unless (magit-file-tracked-p (car files))
-        (setq args (cons "--full-history" args)))
-    (setq args (remove "--follow" args)))
-  (when (--any-p (string-match-p
-                  (concat "^" (regexp-opt magit-log-remove-graph-args)) it)
-                 args)
-    (setq args (remove "--graph" args)))
-  (unless (member "--graph" args)
-    (setq args (remove "--color" args)))
-  (when-let ((limit (magit-log-get-commit-limit))
-             (limit (* 2 limit)) ; increase odds for complete graph
-             (count (and (= (length revs) 1)
-                         (> limit 1024) ; otherwise it's fast enough
-                         (setq revs (car revs))
-                         (not (string-match-p "\\.\\." revs))
-                         (not (member revs '("--all" "--branches")))
-                         (-none-p (lambda (arg)
-                                    (--any-p (string-prefix-p it arg)
-                                             magit-log-disable-graph-hack-args))
-                                  args)
-                         (magit-git-string "rev-list" "--count"
-                                           "--first-parent" args revs))))
-    (setq revs (if (< (string-to-number count) limit)
-                   revs
-                 (format "%s~%s..%s" revs limit revs))))
-  (magit-insert-section (logbuf)
-    (magit-insert-log revs args files)))
+  (progn
+    (magit-set-header-line-format
+     (funcall magit-log-header-line-function revs args files))
+    (if (= (length files) 1)
+        (unless (magit-file-tracked-p (car files))
+          (setq args (cons "--full-history" args)))
+      (setq args (remove "--follow" args)))
+    (when (--any-p (string-match-p
+                    (concat "^" (regexp-opt magit-log-remove-graph-args)) it)
+                   args)
+      (setq args (remove "--graph" args)))
+    (unless (member "--graph" args)
+      (setq args (remove "--color" args)))
+    (when-let ((limit (magit-log-get-commit-limit))
+               (limit (* 2 limit)) ; increase odds for complete graph
+               (count (and (= (length revs) 1)
+                           (> limit 1024) ; otherwise it's fast enough
+                           (setq revs (car revs))
+                           (not (string-match-p "\\.\\." revs))
+                           (not (member revs '("--all" "--branches")))
+                           (-none-p (lambda (arg)
+                                      (--any-p (string-prefix-p it arg)
+                                               magit-log-disable-graph-hack-args))
+                                    args)
+                           (magit-git-string "rev-list" "--count"
+                                             "--first-parent" args revs))))
+      (setq revs (if (< (string-to-number count) limit)
+                     revs
+                   (format "%s~%s..%s" revs limit revs))))
+    (magit-insert-section (logbuf)
+      (magit-insert-log revs args files))))
 
 (cl-defmethod magit-buffer-value (&context (major-mode magit-log-mode))
   (pcase-let ((`(,revs ,_args ,files) magit-refresh-args))
