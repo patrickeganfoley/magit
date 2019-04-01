@@ -128,9 +128,9 @@ specifies additional properties to store in the bookmark."
   "Create a Magit refs bookmark."
   (magit-bookmark--make-record 'magit-refs-mode
     #'magit-bookmark--refs-jump
-    (lambda (refs args)
-      `((magit-refs . ,refs)
-        (magit-args . ,args)))))
+    (lambda ()
+      `((magit-refs . ,magit-refs--focus)
+        (magit-args . ,magit-refs--args)))))
 
 ;;; Log
 
