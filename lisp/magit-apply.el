@@ -232,7 +232,7 @@ so causes the change to be applied to the index as well."
 
 (defun magit-apply--diff-ignores-whitespace-p ()
   (and (cl-intersection (if (derived-mode-p 'magit-diff-mode)
-                            (nth 2 magit-refresh-args)
+                            magit-diff--args
                           magit-diff-section-arguments)
                         '("--ignore-space-at-eol"
                           "--ignore-space-change"
@@ -662,12 +662,12 @@ so causes the change to be applied to the index as well."
   (pcase-let ((`(,binaries ,sections)
                (let ((bs (magit-binary-files
                           (cond ((derived-mode-p 'magit-revision-mode)
-                                 (let ((rev (car magit-refresh-args)))
-                                   (format "%s^..%s" rev rev)))
+                                 (format "%s^..%s"
+                                         magit-diff--range
+                                         magit-diff--range))
                                 ((derived-mode-p 'magit-diff-mode)
-                                 (car magit-refresh-args))
-                                (t
-                                 "--cached")))))
+                                 magit-diff--range)
+                                (t "--cached")))))
                  (--separate (member (oref it value) bs)
                              sections))))
     (magit-confirm-files 'reverse (--map (oref it value) sections))

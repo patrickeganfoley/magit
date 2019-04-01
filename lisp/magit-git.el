@@ -52,6 +52,7 @@
 (defvar magit-published-branches)
 (defvar magit-log--args)
 (defvar magit-log--files)
+(defvar magit-diff--range)
 (defvar magit-diff-section-arguments)
 
 (defvar magit-tramp-process-environment nil)
@@ -1219,7 +1220,7 @@ to, or to some other symbolic-ref that points to the same ref."
 (defun magit-commit-at-point ()
   (or (magit-section-value-if 'commit)
       (and (derived-mode-p 'magit-revision-mode)
-           (car magit-refresh-args))))
+           magit-diff--range)))
 
 (defun magit-branch-or-commit-at-point ()
   (or magit-buffer-refname
@@ -1234,7 +1235,7 @@ to, or to some other symbolic-ref that points to the same ref."
       (thing-at-point 'git-revision t)
       (and (derived-mode-p 'magit-revision-mode
                            'magit-merge-preview-mode)
-           (car magit-refresh-args))))
+           magit-diff--range)))
 
 (defun magit-tag-at-point ()
   (magit-section-case
@@ -1801,7 +1802,7 @@ and this option only controls what face is used.")
     (let ((regexp "\\(, \\|tag: \\|HEAD -> \\)")
           names)
       (if (and (derived-mode-p 'magit-log-mode)
-               (member "--simplify-by-decoration" (cadr magit-refresh-args)))
+               (member "--simplify-by-decoration" magit-log--args))
           (let ((branches (magit-list-local-branch-names))
                 (re (format "^%s/.+" (regexp-opt (magit-list-remotes)))))
             (setq names

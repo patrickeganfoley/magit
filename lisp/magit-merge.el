@@ -199,22 +199,24 @@ then also remove the respective remote branch."
 (defun magit-merge-preview (rev)
   "Preview result of merging REV into the current branch."
   (interactive (list (magit-read-other-branch-or-commit "Preview merge")))
-  (magit-mode-setup #'magit-merge-preview-mode rev))
+  (magit-setup-buffer #'magit-merge-preview-mode nil
+    (magit-diff--range rev)))
 
 (define-derived-mode magit-merge-preview-mode magit-diff-mode "Magit Merge"
   "Mode for previewing a merge."
   :group 'magit-diff
   (hack-dir-local-variables-non-file-buffer))
 
-(defun magit-merge-preview-refresh-buffer (rev)
+(defun magit-merge-preview-refresh-buffer ()
   (let* ((branch (magit-get-current-branch))
          (head (or branch (magit-rev-verify "HEAD"))))
     (magit-set-header-line-format (format "Preview merge of %s into %s"
-                                          rev
+                                          magit-diff--range
                                           (or branch "HEAD")))
     (magit-insert-section (diffbuf)
       (magit--insert-diff
-        "merge-tree" (magit-git-string "merge-base" head rev) head rev))))
+        "merge-tree" (magit-git-string "merge-base" head magit-diff--range)
+        head magit-diff--range))))
 
 ;;;###autoload
 (defun magit-merge-abort ()
