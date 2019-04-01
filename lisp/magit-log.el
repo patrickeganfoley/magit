@@ -365,6 +365,12 @@ the upstream isn't ahead of the current branch) show."
   :group 'magit-status
   :type '(repeat (string :tag "Argument")))
 
+;;; Variables
+
+(defvar-local magit-log--revs nil)
+(defvar-local magit-log--args nil)
+(defvar-local magit-log--files nil)
+
 ;;; Commands
 ;;;; Popups
 
@@ -475,9 +481,10 @@ the upstream isn't ahead of the current branch) show."
     (magit-log-refresh-assert)
     (pcase-let ((`(,args ,files) (magit-log-arguments t)))
       (cond ((derived-mode-p 'magit-log-select-mode)
-             (setcar (cdr magit-refresh-args) args))
+             (setq magit-log--args args))
             ((derived-mode-p 'magit-log-mode)
-             (setcdr magit-refresh-args (list args files)))
+             (setq magit-log--args args)
+             (setq magit-log--files files))
             (t
              (setq-local magit-log-section-arguments args))))
     (magit-refresh)))
@@ -490,10 +497,9 @@ the upstream isn't ahead of the current branch) show."
 
 (defun magit-log-refresh--initial-value ()
   (cond ((derived-mode-p 'magit-log-select-mode)
-         (cadr magit-refresh-args))
+         magit-log--args)
         ((derived-mode-p 'magit-log-mode)
-         (magit-log--merge-args (nth 1 magit-refresh-args)
-                                (nth 2 magit-refresh-args)))
+         (magit-log--merge-args magit-log--args magit-log--files))
         (t
          magit-log-section-arguments)))
 
@@ -505,13 +511,11 @@ the upstream isn't ahead of the current branch) show."
 (defun magit-log-get-buffer-args ()
   (cond ((and magit-use-sticky-arguments
               (derived-mode-p 'magit-log-mode))
-         (list (nth 1 magit-refresh-args)
-               (nth 2 magit-refresh-args)))
+         (list magit-log--args magit-log--files))
         ((and (eq magit-use-sticky-arguments t)
               (when-let ((buffer (magit-mode-get-buffer 'magit-log-mode)))
-                (let ((args (buffer-local-value 'magit-refresh-args buffer)))
-                  (list (nth 1 args)
-                        (nth 2 args))))))
+                (list (buffer-local-value 'magit-log--args buffer)
+                      (buffer-local-value 'magit-log--files buffer)))))
         (t
          (list (default-value 'magit-log-arguments) nil))))
 
@@ -588,10 +592,11 @@ the upstream isn't ahead of the current branch) show."
   (magit-log-refresh-assert)
   (cond ((derived-mode-p 'magit-log-select-mode)
          (customize-set-variable 'magit-log-select-arguments args)
-         (setcar (cdr magit-refresh-args) args))
+         (setq magit-log--args args))
         ((derived-mode-p 'magit-log-mode)
          (customize-set-variable 'magit-log-arguments args)
-         (setcdr magit-refresh-args (list args files)))
+         (setq magit-log--args args)
+         (setq magit-log--files files))
         (t
          (customize-set-variable 'magit-log-section-arguments args)
          (kill-local-variable    'magit-log-section-arguments)))
@@ -603,10 +608,11 @@ the upstream isn't ahead of the current branch) show."
   (magit-log-refresh-assert)
   (cond ((derived-mode-p 'magit-log-select-mode)
          (customize-save-variable 'magit-log-select-arguments args)
-         (setcar (cdr magit-refresh-args) args))
+         (setq magit-log--args args))
         ((derived-mode-p 'magit-log-mode)
          (customize-save-variable 'magit-log-arguments args)
-         (setcdr magit-refresh-args (list args files)))
+         (setq magit-log--args args)
+         (setq magit-log--files files))
         (t
          (customize-save-variable 'magit-log-section-arguments args)
          (kill-local-variable     'magit-log-section-arguments)))
@@ -844,10 +850,10 @@ limit.  Otherwise set it to 256."
          (num (and arg (string-to-number (match-string 1 arg))))
          (num (if num (funcall fn num 2) 256)))
     (setq val (delete arg val))
-    (setcar (cdr magit-refresh-args)
-            (if (and num (> num 0))
-                (cons (format "-n%i" num) val)
-              val)))
+    (setq magit-log--args
+          (if (and num (> num 0))
+              (cons (format "-n%i" num) val)
+            val)))
   (magit-refresh))
 
 (defun magit-log-get-commit-limit ()
@@ -938,11 +944,17 @@ Type \\[magit-reset] to reset `HEAD' to the commit at point.
 
 (defun magit-log-setup-buffer (revs args files &optional locked)
   (require 'magit)
-  (magit-mode-setup-internal #'magit-log-mode (list revs args files) locked)
-  (magit-log-goto-same-commit))
+  (with-current-buffer
+      (magit-setup-buffer #'magit-log-mode locked
+        (magit-log--revs revs)
+        (magit-log--args args)
+        (magit-log--files files))
+    (magit-log-goto-same-commit)))
 
-(defun magit-log-refresh-buffer (revs args files)
-  (progn
+(defun magit-log-refresh-buffer ()
+  (let ((revs  magit-log--revs)
+        (args  magit-log--args)
+        (files magit-log--files))
     (magit-set-header-line-format
      (funcall magit-log-header-line-function revs args files))
     (if (= (length files) 1)
@@ -975,10 +987,10 @@ Type \\[magit-reset] to reset `HEAD' to the commit at point.
       (magit-insert-log revs args files))))
 
 (cl-defmethod magit-buffer-value (&context (major-mode magit-log-mode))
-  (pcase-let ((`(,revs ,_args ,files) magit-refresh-args))
-    (if (and revs files)
-        (append revs (cons "--" files))
-      (append revs files))))
+  (append magit-log--revs
+          (if (and magit-log--revs magit-log--files)
+              (cons "--" magit-log--files)
+            magit-log--files)))
 
 (defun magit-log-header-line-arguments (revs args files)
   "Return string describing some of the used arguments."
@@ -1152,7 +1164,7 @@ Do not add this to a hook variable."
     (when refs
       (setq refs (substring-no-properties refs)))
     (let ((align (or (eq style 'cherry)
-                     (not (member "--stat" (cadr magit-refresh-args)))))
+                     (not (member "--stat" magit-log--args))))
           (non-graph-re (if (eq style 'bisect-vis)
                             magit-log-bisect-vis-re
                           magit-log-heading-re)))

@@ -154,13 +154,10 @@ is no file at point, then instead visit `default-directory'."
                    (not (member "--follow" args))
                    (not (cdr files)))
           (push "--follow" args))
-        (magit-mode-setup-internal
-         #'magit-log-mode
-         (list (list (or (magit-get-current-branch) "HEAD"))
-               args
-               (let ((default-directory topdir))
-                 (mapcar #'file-relative-name files)))
-         magit-log-buffer-file-locked))
+        (magit-setup-buffer #'magit-log-mode magit-log-buffer-file-locked
+          (magit-log--revs (list (or (magit-get-current-branch) "HEAD")))
+          (magit-log--args (let ((default-directory topdir))
+                             (mapcar #'file-relative-name files)))))
     (magit--not-inside-repository-error)))
 
 ;;;###autoload

@@ -50,6 +50,8 @@
 (defvar magit-refresh-args) ; from `magit-mode' for `magit-current-file'
 (defvar magit-branch-prefer-remote-upstream)
 (defvar magit-published-branches)
+(defvar magit-log--args)
+(defvar magit-log--files)
 (defvar magit-diff-section-arguments)
 
 (defvar magit-tramp-process-environment nil)
@@ -925,7 +927,7 @@ Sorted from longest to shortest CYGWIN name."
   (or (magit-file-relative-name)
       (magit-file-at-point)
       (and (derived-mode-p 'magit-log-mode)
-           (car (nth 2 magit-refresh-args)))))
+           (car magit-log--files))))
 
 ;;; Predicates
 
