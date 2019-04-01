@@ -417,19 +417,22 @@ instead of \"Stashes:\"."
   (setq-local bookmark-make-record-function
               #'magit-bookmark--stashes-make-record))
 
-(defun magit-stashes-setup-buffer ()
-  (magit-setup-buffer #'magit-stashes-mode))
+(defvar-local magit-stashes--ref nil)
 
-(defun magit-stashes-refresh-buffer (ref)
+(defun magit-stashes-setup-buffer ()
+  (magit-setup-buffer #'magit-stashes-mode nil
+    (magit-stashes--ref "refs/stash")))
+
+(defun magit-stashes-refresh-buffer ()
   (magit-insert-section (stashesbuf)
-    (magit-insert-heading (if (equal ref "refs/stash")
+    (magit-insert-heading (if (equal magit-stashes--ref "refs/stash")
                               "Stashes:"
-                            (format "Stashes [%s]:" ref)))
+                            (format "Stashes [%s]:" magit-stashes--ref)))
     (magit-git-wash (apply-partially 'magit-log-wash-log 'stash)
-      "reflog" "--format=%gd%x00%aN%x00%at%x00%gs" ref)))
+      "reflog" "--format=%gd%x00%aN%x00%at%x00%gs" magit-stashes--ref)))
 
 (cl-defmethod magit-buffer-value (&context (major-mode magit-stashes-mode))
-  (car magit-refresh-args))
+  magit-stashes--ref)
 
 ;;; Show Stash
 
